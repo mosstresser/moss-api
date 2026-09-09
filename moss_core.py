@@ -1,4 +1,4 @@
-# moss_core.py - FIXED (signature & client_secret)
+# moss_core.py - FINAL (fix signature, domain, dll)
 import json, time, random, string, hashlib, base64, codecs
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -11,8 +11,15 @@ urllib3.disable_warnings()
 AES_KEY = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 AES_IV = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
 CLIENT_SECRET = "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3"
-REGION_LANG = {"ME":"ar","IND":"hi","ID":"id","VN":"vi","TH":"th","BD":"bn","PK":"ur","TW":"zh","CIS":"ru","SAC":"es","BR":"pt"}
+REGION_LANG = {
+    "ME": "ar", "IND": "hi", "ID": "id", "VN": "vi", "TH": "th",
+    "BD": "bn", "PK": "ur", "TW": "zh", "CIS": "ru", "SAC": "es", "BR": "pt"
+}
+INDIAN_CITIES = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata", "Pune", "Ahmedabad", "Jaipur", "Lucknow"]
+INDIAN_CARRIERS = ["Jio", "Airtel", "Vodafone Idea", "BSNL", "MTNL"]
+INDIAN_DEVICES = ["Asus ASUS_AI2401_A", "Samsung SM-G998B", "OnePlus 9 Pro", "Xiaomi Mi 11", "Google Pixel 6"]
 
+# ================== USER-AGENT ==================
 def sUs():
     return "GarenaMSDK/4.0.39(FRL-AN00a ;Android 10;nu;HK;)"
 
@@ -136,14 +143,15 @@ def pWe():
     except:
         return "0.0.0.0"
 
-# ---------- PERBAIKAN: RoFl (signature dari json_body) ----------
+# ---------- PERBAIKAN: RoFl (signature = CLIENT_SECRET + json_body) ----------
 def RoFl(session, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
     payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
     json_body = json.dumps(payload, separators=(',', ':'))
     
-    # FIX: signature dari json_body saja
-    signature = hashlib.sha256(json_body.encode()).hexdigest()
+    # FIX: signature dengan CLIENT_SECRET + json_body
+    data_to_sign = CLIENT_SECRET + json_body
+    signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
     
     headers = {
         "User-Agent": sUs(),
@@ -161,7 +169,7 @@ def RoFl(session, password):
         resp.raise_for_status()
         raise Exception(f"Unexpected response: {resp.text}")
 
-# ---------- PERBAIKAN: lMaO (client_secret string) ----------
+# ---------- lMaO (client_secret string) ----------
 def lMaO(session, uid, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
     payload = {
@@ -180,9 +188,17 @@ def lMaO(session, uid, password):
         raise Exception(f"Token grant failed: {data}")
     return data["data"]["access_token"], data["data"]["open_id"]
 
+def get_base_url(region):
+    if region.upper() in ["ME", "TH"]:
+        return "https://loginbp.common.ggbluefox.com"
+    else:
+        return "https://loginbp.ggpolarbear.com"
+
 def gG(session, name, access_token, open_id, region, is_ghost=False):
-    url = "https://loginbp.ggpolarbear.com/MajorRegister"
-    host = "loginbp.ggpolarbear.com"
+    base = get_base_url(region)
+    url = f"{base}/MajorRegister"
+    host = base.replace("https://", "")
+    
     exp_digits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'}
     num = random.randint(1,99999)
     exp = ''.join(exp_digits[d] for d in f"{num:05d}")
@@ -209,12 +225,18 @@ def gG(session, name, access_token, open_id, region, is_ghost=False):
     return Pro(resp.content)
 
 def nIcE(session, access_token, open_id, region, lang_code):
-    url = "https://loginbp.ggpolarbear.com/MajorLogin"
+    base = get_base_url(region)
+    url = f"{base}/MajorLogin"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ip = pWe()
-    device_model = "Asus ASUS_AI2401_A"
-    carrier = "GrameenPhone"
-    city = "Dhaka"
+    if region.upper() == "IND":
+        device_model = random.choice(INDIAN_DEVICES)
+        carrier = random.choice(INDIAN_CARRIERS)
+        city = random.choice(INDIAN_CITIES)
+    else:
+        device_model = "Asus ASUS_AI2401_A"
+        carrier = "GrameenPhone"
+        city = "Dhaka"
     gpu = "Adreno (TM) 640"
     
     def qT(n):
@@ -302,7 +324,8 @@ def nIcE(session, access_token, open_id, region, lang_code):
     return decoded, jwt_token
 
 def dUdE(session, region_code, jwt_token):
-    url = "https://loginbp.ggpolarbear.com/ChooseRegion"
+    base = get_base_url(region_code)
+    url = f"{base}/ChooseRegion"
     if region_code.upper() == "CIS":
         region_code = "ru"
     else:
