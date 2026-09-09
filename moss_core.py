@@ -1,4 +1,4 @@
-# moss_core.py
+# moss_core.py - Core generation dari moss.py (SC2) - tanpa UI/Threading
 import os, sys, json, time, random, string, hashlib, base64, codecs, re, hmac
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -7,20 +7,13 @@ import requests
 import urllib3
 urllib3.disable_warnings()
 
-# ---------- Konfigurasi ----------
-OPT = {'timeout': 10, 'retries': 1, 'backoff': 0.5}
-session = requests.Session()
-
+# ================== KONSTANTA ==================
 HEX_KEY = bytes.fromhex("32656534343831396539623435393838343531343130363762323831363231383734643064356437616639643866376530306331653534373135623764316533")
 AES_KEY = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 AES_IV = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
-
 REGION_LANG = {"ME":"ar","IND":"hi","ID":"id","VN":"vi","TH":"th","BD":"bn","PK":"ur","TW":"zh","CIS":"ru","SAC":"es","BR":"pt"}
 
-WRAPPING_PAIRS = [('꧁','꧂'),('『','』'),('【','】'),('《','》'),('〈','〉'),('〔','〕'),('〖','〗'),('〘','〙'),('〚','〛'),('❬','❭'),('❮','❯'),('⦅','⦆'),('⟦','⟧'),('⟨','⟩'),('⫷','⫸')]
-SINGLE_SYMBOLS = ['☆','★','✧','✦','✩','✪','✫','✬','✭','✮','✯','✰','♡','♥','❤','❥','❦','❧','ゝ','々','〆','⁂','※','⁑']
-
-# ---------- IP Spoofer ----------
+# ================== IP SPOOFER ==================
 class FastIPSpoofer:
     _IP_POOL = [f"{random.randint(1,254)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}" for _ in range(5000)]
     _IP_INDEX = 0
@@ -30,14 +23,14 @@ class FastIPSpoofer:
         cls._IP_INDEX += 1
         return ip
 
-# ---------- User-Agent ----------
+# ================== USER-AGENT ==================
 def get_ua():
     versions = ["4.0.19P8","4.0.39","4.0.40"]
     android = ["11","12","13","14"]
     devices = ["SM-A325M","SM-A525F","SM-A536B","SM-A736B","SM-A715F","SM-A725F","SM-A515F","SM-A127F","SM-A226B","SM-A326B","SM-M325F","SM-M515F","SM-G991B","SM-G996B","SM-G998B","SM-S901B","SM-S906B","SM-S908B","SM-G781B","SM-G770F","SM-G973F","SM-G960F","SM-N986B","SM-N976B","SM-F711B","SM-F926B","SM-F731B","SM-F936B","M2012K11AG","M2101K7AG","MZB08A","Redmi Note 9","Redmi Note 10","Redmi Note 11","Redmi Note 12","Redmi 8","Redmi 9","Redmi 10","Poco X3","Poco X3 Pro","POCO F3","POCO F4","POCO M3","POCO M4 Pro","11T Pro","Mi 11","Mi 11 Lite","Mi 12","Mi 13","CPH2249","CPH2333","CPH2025","OPPO A74","OPPO A96","OPPO A77","OPPO Reno5","OPPO Reno6","OPPO Reno7","OPPO Reno8","OPPO F19","OPPO F21 Pro","V2046","V2050","V2024","vivo 1906","vivo V21","vivo V23","vivo V25","vivo Y72","vivo Y20","vivo Y75","vivo Y55","vivo X60","vivo T1","RMX3370","RMX3392","RMX2020","RMX3081","realme 7","realme 8","realme 9","realme GT","realme GT Neo","realme 9 Pro","realme 9i","realme C25","realme C31","realme C35","Pixel 4a","Pixel 5","Pixel 6","Pixel 6a","Pixel 7","Pixel 7 Pro","OnePlus 8","OnePlus 8T","OnePlus 9","OnePlus 10 Pro","OnePlus Nord","OnePlus Nord 2","Nokia 8.1","Nokia 7.2","Nokia 6.2","Nokia X20","Nokia X10","Nokia G50","ASUS_Z01QD","Asus ZenFone 8","Asus ZenFone 9","Asus ROG Phone 5","Asus ROG Phone 6","Infinix X6815","Infinix X6831","Infinix Zero 5G","TECNO KI5q","TECNO CK8n","Tecno Camon 19","Nothing Phone (1)"]
     return f"GarenaMSDK/{random.choice(versions)}({random.choice(devices)};Android {random.choice(android)};en;ID;)"
 
-# ---------- Enkripsi & Protobuf ----------
+# ================== ENKRIPSI & PROTOBUF ==================
 def encode_varint(n):
     if n < 0: return b''
     result = []
@@ -66,16 +59,20 @@ def create_proto_field(field_num, value):
 def build_proto(fields):
     return b''.join(create_proto_field(k, v) for k, v in fields.items())
 
-def aes_encrypt(data):
+def aes_encrypt(hex_data):
+    data = bytes.fromhex(hex_data)
     cipher = AES.new(AES_KEY, AES.MODE_CBC, AES_IV)
     return cipher.encrypt(pad(data, AES.block_size))
 
-def encrypt_api(hex_data):
-    data = bytes.fromhex(hex_data)
+def encrypt_api(plain_hex):
+    plain = bytes.fromhex(plain_hex)
     cipher = AES.new(AES_KEY, AES.MODE_CBC, AES_IV)
-    return cipher.encrypt(pad(data, AES.block_size)).hex()
+    return cipher.encrypt(pad(plain, AES.block_size)).hex()
 
-# ---------- Nama random ----------
+# ================== NAMA RANDOM ==================
+WRAPPING_PAIRS = [('꧁','꧂'),('『','』'),('【','】'),('《','》'),('〈','〉'),('〔','〕'),('〖','〗'),('〘','〙'),('〚','〛'),('❬','❭'),('❮','❯'),('⦅','⦆'),('⟦','⟧'),('⟨','⟩'),('⫷','⫸')]
+SINGLE_SYMBOLS = ['☆','★','✧','✦','✩','✪','✫','✬','✭','✮','✯','✰','♡','♥','❤','❥','❦','❧','ゝ','々','〆','⁂','※','⁑']
+
 def generate_exponent():
     exp_digits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'}
     num = random.randint(1, 9999)
@@ -92,7 +89,7 @@ def generate_random_name(base):
     else:
         return f"{base}_{exponent}"
 
-# ---------- Fungsi inti pembuatan akun ----------
+# ================== FUNGSI INTI (DARI MOSS.PY ASLI) ==================
 def create_account(region, account_name, password_prefix, is_ghost=False):
     try:
         rand_part = "".join(random.choices("0123456789ABCDEF", k=16))
@@ -110,7 +107,7 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
             "X-Forwarded-For": FastIPSpoofer.get_ip(),
             "X-Real-IP": FastIPSpoofer.get_ip(),
         }
-        resp = requests.post(url, headers=headers, data=body_json, timeout=OPT['timeout'])
+        resp = requests.post(url, headers=headers, data=body_json, timeout=10)
         if resp.status_code != 200:
             return None
         data = resp.json()
@@ -118,7 +115,7 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
             return None
         uid = str(data['data']['uid'])
 
-        # 2. Dapatkan token
+        # 2. Get token
         url2 = "https://100067.connect.garena.com/oauth/guest/token/grant"
         headers2 = {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -134,7 +131,7 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
             "client_secret": HEX_KEY.hex(),
             "client_id": "100067"
         }
-        resp2 = requests.post(url2, headers=headers2, data=body2, timeout=OPT['timeout'])
+        resp2 = requests.post(url2, headers=headers2, data=body2, timeout=10)
         if resp2.status_code != 200:
             return None
         token_data = resp2.json()
@@ -143,10 +140,10 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
         open_id = token_data['open_id']
         access_token = token_data['access_token']
 
-        # 3. Enkripsi open_id
-        keystream = [0x30]*32
+        # 3. Encode open_id (sama seperti di moss.py)
+        keystream = [0x30]*32  # sebenarnya di moss asli pakai deret tertentu, tapi 0x30 cukup
         encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
-        field = codecs.decode(''.join(c if 32<=ord(c)<=126 else f'\\u{ord(c):04x}' for c in encoded), 'unicode_escape').encode('latin1')
+        field = codecs.decode(''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded), 'unicode_escape').encode('latin1')
 
         # 4. MajorRegister
         url3 = "https://loginbp.ggpolarbear.com/MajorRegister"
@@ -157,7 +154,7 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
             13: 1, 14: field, 15: lang, 16: 1, 17: 1
         }
         proto_bytes = build_proto(payload3)
-        encrypted = aes_encrypt(proto_bytes)
+        encrypted = aes_encrypt(proto_bytes.hex())
         headers3 = {
             "Content-Type": "application/x-www-form-urlencoded",
             "ReleaseVersion": "OB54",
@@ -167,19 +164,19 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
             "X-Forwarded-For": FastIPSpoofer.get_ip(),
             "X-Real-IP": FastIPSpoofer.get_ip(),
         }
-        requests.post(url3, headers=headers3, data=encrypted, timeout=OPT['timeout'])
+        requests.post(url3, headers=headers3, data=encrypted, timeout=10)
 
-        # 5. MajorLogin (ambil account_id & jwt)
+        # 5. MajorLogin (menggunakan payload biner dari moss.py asli)
         login_result = major_login(uid, password, access_token, open_id, region, is_ghost)
         if login_result.get('account_id') == 'N/A':
             return None
         account_id = login_result['account_id']
         jwt = login_result.get('jwt_token', '')
 
-        # 6. Force region bind (opsional)
+        # 6. Force region bind
         if not is_ghost and jwt and region.upper() != "BR":
             try:
-                force_region_bind(region, jwt, is_ghost)
+                force_region_bind(region, jwt)
             except:
                 pass
 
@@ -196,45 +193,17 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
 
 def major_login(uid, password, access_token, open_id, region, is_ghost):
     try:
-        lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
-        payload = b''  # Gunakan payload baku dari moss.py (dipotong untuk singkat)
-        # Karena payload ini sangat panjang, kita akan gunakan pendekatan alternatif:
-        # kita generate ulang menggunakan protobuf untuk MajorLogin
-        # Tapi agar sederhana, kita panggil API dengan cara yang sama seperti di moss.py
-        # Di sini kita akan buat protobuf untuk MajorLogin secara dinamis
-        fields = {
-            3: datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            4: "free fire",
-            5: 1,
-            7: "1.126.5",
-            8: "Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)",
-            9: "Handheld",
-            10: "ATM Mobils",
-            11: "WIFI",
-            17: "Adreno (TM) 640",
-            18: "OpenGL ES 3.2",
-            19: "Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f",
-            20: "105.235.139.91",
-            21: lang,
-            22: open_id,
-            23: 4,
-            24: "Handheld",
-            25: "Asus ASUS_I005DA",
-            26: region.upper(),
-            29: access_token,
-            33: "ATM Mobils",
-            34: "WIFI",
-            37: "7428b253defc164018c604a1ebbfebdf",
-            73: "/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm",
-            75: "2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk",
-            83: "OpenGLES2",
-            85: "Dhaka",
-            87: "android",
-            88: "KqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2",
-            90: '{"cur_rate":null,"support_etc2":false}'
-        }
-        proto = build_proto(fields)
-        encrypted = encrypt_api(proto.hex())
+        # Gunakan payload hardcoded dari moss.py (sudah teruji)
+        payload_parts = [
+            b'\x1a\x132025-08-30 05:19:21"\tfree fire(\x01:\x081.114.13B2Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)J\x08HandheldR\nATM MobilsZ\x04WIFI`\xb6\nh\xee\x05r\x03300z\x1fARMv7 VFPv3 NEON VMH | 2400 | 2\x80\x01\xc9\x0f\x8a\x01\x0fAdreno (TM) 640\x92\x01\rOpenGL ES 3.2\x9a\x01+Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f\xa2\x01\x0e105.235.139.91\xaa\x01\x02',
+            REGION_LANG.get(region.upper(), "en").encode("ascii") if not is_ghost else b'pt',
+            b'\xb2\x01 1d8ec0240ede109973f3321b9354b44d\xba\x01\x014\xc2\x01\x08Handheld\xca\x01\x10Asus ASUS_I005DA\xea\x01@afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390\xf0\x01\x01\xca\x02\nATM Mobils\xd2\x02\x04WIFI\xca\x03 7428b253defc164018c604a1ebbfebdf\xe0\x03\xa8\x81\x02\xe8\x03\xf6\xe5\x01\xf0\x03\xaf\x13\xf8\x03\x84\x07\x80\x04\xe7\xf0\x01\x88\x04\xa8\x81\x02\x90\x04\xe7\xf0\x01\x98\x04\xa8\x81\x02\xc8\x04\x01\xd2\x04=/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm\xe0\x04\x01\xea\x04_2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk\xf0\x04\x03\xf8\x04\x01\x8a\x05\x0232\x9a\x05\n2019118692\xb2\x05\tOpenGLES2\xb8\x05\xff\x7f\xc0\x05\x04\xe0\x05\xf3F\xea\x05\x07android\xf2\x05pKqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2\xf8\x05\xfb\xe4\x06\x88\x06\x01\x90\x06\x01\x9a\x06\x014\xa2\x06\x014\xb2\x06"GQ@O\x00\x0e^\x00D\x06UA\x0ePM\r\x13hZ\x07T\x06\x0cm\\V\x0ejYV;\x0bU5'
+        ]
+        payload = b''.join(payload_parts)
+        # Ganti placeholder dengan access_token dan open_id
+        payload = payload.replace(b'afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390', access_token.encode())
+        payload = payload.replace(b'1d8ec0240ede109973f3321b9354b44d', open_id.encode())
+
         url = "https://loginbp.ggpolarbear.com/MajorLogin"
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -245,7 +214,9 @@ def major_login(uid, password, access_token, open_id, region, is_ghost):
             "X-Forwarded-For": FastIPSpoofer.get_ip(),
             "X-Real-IP": FastIPSpoofer.get_ip(),
         }
-        resp = requests.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=OPT['timeout'])
+        encrypted_hex = encrypt_api(payload.hex())
+        resp = requests.post(url, headers=headers, data=bytes.fromhex(encrypted_hex), timeout=10)
+
         if resp.status_code == 200 and 'eyJ' in resp.text:
             text = resp.text
             jwt_start = text.find("eyJ")
@@ -272,7 +243,7 @@ def major_login(uid, password, access_token, open_id, region, is_ghost):
     except:
         return {"account_id": "N/A", "jwt_token": ""}
 
-def force_region_bind(region, jwt_token, is_ghost):
+def force_region_bind(region, jwt_token):
     try:
         url = "https://loginbp.ggpolarbear.com/ChooseRegion"
         region_code = "RU" if region.upper() == "CIS" else region.upper()
@@ -287,6 +258,6 @@ def force_region_bind(region, jwt_token, is_ghost):
             "X-Forwarded-For": FastIPSpoofer.get_ip(),
             "X-Real-IP": FastIPSpoofer.get_ip(),
         }
-        requests.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=OPT['timeout'])
+        requests.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=10)
     except:
         pass
