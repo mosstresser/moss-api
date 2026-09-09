@@ -3,5 +3,4 @@ uvicorn
 requests
 pycryptodome
 urllib3
-google
 protobuf
