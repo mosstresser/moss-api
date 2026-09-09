@@ -1,4 +1,4 @@
-# moss_core.py - Core generation dari moss.py (SC2) - tanpa UI/Threading
+# moss_core.py - Final dengan perbaikan
 import os, sys, json, time, random, string, hashlib, base64, codecs, re, hmac
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -13,7 +13,7 @@ AES_KEY = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 AES_IV = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
 REGION_LANG = {"ME":"ar","IND":"hi","ID":"id","VN":"vi","TH":"th","BD":"bn","PK":"ur","TW":"zh","CIS":"ru","SAC":"es","BR":"pt"}
 
-# ================== IP SPOOFER ==================
+# ================== IP SPOOFER & UA ==================
 class FastIPSpoofer:
     _IP_POOL = [f"{random.randint(1,254)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}" for _ in range(5000)]
     _IP_INDEX = 0
@@ -23,7 +23,6 @@ class FastIPSpoofer:
         cls._IP_INDEX += 1
         return ip
 
-# ================== USER-AGENT ==================
 def get_ua():
     versions = ["4.0.19P8","4.0.39","4.0.40"]
     android = ["11","12","13","14"]
@@ -89,97 +88,210 @@ def generate_random_name(base):
     else:
         return f"{base}_{exponent}"
 
-# ================== FUNGSI INTI (DARI MOSS.PY ASLI) ==================
-def create_account(region, account_name, password_prefix, is_ghost=False):
-    try:
-        rand_part = "".join(random.choices("0123456789ABCDEF", k=16))
-        password = f"{password_prefix}_{rand_part}"
-        
-        # 1. Register guest
-        url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
-        payload = {"app_id":100067, "client_type":2, "password":password, "source":2}
-        body_json = json.dumps(payload, separators=(",",":"))
-        signature = hmac.new(HEX_KEY, body_json.encode("utf-8"), hashlib.sha256).hexdigest()
-        headers = {
-            "User-Agent": get_ua(),
-            "Authorization": f"Signature {signature}",
-            "Content-Type": "application/json; charset=utf-8",
-            "X-Forwarded-For": FastIPSpoofer.get_ip(),
-            "X-Real-IP": FastIPSpoofer.get_ip(),
-        }
-        resp = requests.post(url, headers=headers, data=body_json, timeout=10)
-        if resp.status_code != 200:
-            return None
+# ================== FUNGSI DARI MOSS.PY ASLI ==================
+def get_base_url(region):
+    if region.upper() in ["ME", "TH"]:
+        return "https://loginbp.common.ggbluefox.com"
+    else:
+        return "https://loginbp.ggpolarbear.com"
+
+def RoFl(session, password):
+    url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
+    payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
+    json_body = json.dumps(payload, separators=(',', ':'))
+    data_to_sign = HEX_KEY.hex() + json_body
+    signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
+    headers = {
+        "User-Agent": get_ua(),
+        "Authorization": f"Signature {signature}",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Forwarded-For": FastIPSpoofer.get_ip(),
+        "X-Real-IP": FastIPSpoofer.get_ip(),
+    }
+    resp = session.post(url, data=json_body, headers=headers, timeout=20)
+    if resp.status_code == 200:
         data = resp.json()
-        if data.get('code') != 0:
-            return None
-        uid = str(data['data']['uid'])
+        if data.get("code") == 0:
+            return str(data["data"]["uid"])
+        else:
+            raise Exception(f"Register failed: {data}")
+    else:
+        raise Exception(f"Register HTTP {resp.status_code}: {resp.text}")
 
-        # 2. Get token
-        url2 = "https://100067.connect.garena.com/oauth/guest/token/grant"
-        headers2 = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": get_ua(),
-            "X-Forwarded-For": FastIPSpoofer.get_ip(),
-            "X-Real-IP": FastIPSpoofer.get_ip(),
-        }
-        body2 = {
-            "uid": uid,
-            "password": password,
-            "response_type": "token",
-            "client_type": "2",
-            "client_secret": HEX_KEY.hex(),
-            "client_id": "100067"
-        }
-        resp2 = requests.post(url2, headers=headers2, data=body2, timeout=10)
-        if resp2.status_code != 200:
-            return None
-        token_data = resp2.json()
-        if 'open_id' not in token_data:
-            return None
-        open_id = token_data['open_id']
-        access_token = token_data['access_token']
+def lMaO(session, uid, password):
+    url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
+    payload = {
+        "client_id":100067, "client_secret":HEX_KEY.hex(), "client_type":2,
+        "password":password, "response_type":"token", "uid":uid
+    }
+    headers = {"User-Agent": get_ua(), "Content-Type": "application/json",
+               "X-Forwarded-For": FastIPSpoofer.get_ip(),
+               "X-Real-IP": FastIPSpoofer.get_ip()}
+    resp = session.post(url, json=payload, headers=headers, timeout=20)
+    if resp.status_code != 200:
+        raise Exception(f"Token grant HTTP {resp.status_code}: {resp.text}")
+    data = resp.json()
+    if data.get("code") != 0:
+        raise Exception(f"Token grant failed: {data}")
+    return data["data"]["access_token"], data["data"]["open_id"]
 
-        # 3. Encode open_id (sama seperti di moss.py)
-        keystream = [0x30]*32  # sebenarnya di moss asli pakai deret tertentu, tapi 0x30 cukup
-        encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
-        field = codecs.decode(''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded), 'unicode_escape').encode('latin1')
+def gG(session, name, access_token, open_id, region, is_ghost=False):
+    base = get_base_url(region)
+    url = f"{base}/MajorRegister"
+    keystream = [0x30]*32
+    encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
+    field_unicode = ''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded)
+    field_bytes = codecs.decode(field_unicode, 'unicode_escape').encode('latin1')
+    lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
+    fields_dict = {
+        "1": name, "2": access_token, "3": open_id,
+        "5": 102000007, "6": 4, "7": 1, "13": 1,
+        "14": field_bytes, "15": lang, "16": 2
+    }
+    plaintext = build_proto(fields_dict)
+    encrypted_payload = aes_encrypt(plaintext.hex())
+    headers = {
+        "Accept-Encoding": "gzip", "Authorization": "Bearer", "Connection": "Keep-Alive",
+        "Content-Type": "application/x-www-form-urlencoded", "Expect": "100-continue",
+        "Host": base.replace("https://", ""), "ReleaseVersion": "OB54",
+        "User-Agent": get_ua(), "X-GA": "v1 1", "X-Unity-Version": "2018.4.",
+        "X-Forwarded-For": FastIPSpoofer.get_ip(),
+        "X-Real-IP": FastIPSpoofer.get_ip(),
+    }
+    resp = session.post(url, headers=headers, data=encrypted_payload, timeout=20)
+    if resp.status_code != 200:
+        raise Exception(f"MajorRegister HTTP {resp.status_code}: {resp.text}")
+    # Tidak perlu parse, asal sukses
+    return True
 
-        # 4. MajorRegister
-        url3 = "https://loginbp.ggpolarbear.com/MajorRegister"
+def nIcE(session, access_token, open_id, region, is_ghost=False):
+    base = get_base_url(region)
+    url = f"{base}/MajorLogin"
+    lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
+    ip = FastIPSpoofer.get_ip()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    device_model = "Asus ASUS_I005DA"
+    carrier = "ATM Mobils"
+    city = "Dhaka"
+    gpu = "Adreno (TM) 640"
+    fields = {
+        3: now_str,
+        4: "free fire",
+        5: 1,
+        7: "1.126.5",
+        8: "Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)",
+        9: "Handheld",
+        10: carrier,
+        11: "WIFI",
+        17: gpu,
+        18: "OpenGL ES 3.2",
+        19: "Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f",
+        20: ip,
+        21: lang,
+        22: open_id,
+        23: 4,
+        24: "Handheld",
+        25: device_model,
+        26: region.upper(),
+        29: access_token,
+        33: carrier,
+        34: "WIFI",
+        37: "7428b253defc164018c604a1ebbfebdf",
+        73: "/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm",
+        75: "2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk",
+        76: 2,
+        78: 2,
+        79: 2,
+        83: "OpenGLES2",
+        85: city,
+        87: "android",
+        88: "KqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2",
+        90: '{"cur_rate":null,"support_etc2":false}',
+        97: 1,
+        98: 1,
+        99: "4",
+        100: "4"
+    }
+    proto = build_proto(fields)
+    encrypted = encrypt_api(proto.hex())
+    headers = {
+        "Accept-Encoding": "gzip", "Connection": "Keep-Alive",
+        "Content-Type": "application/x-www-form-urlencoded", "Expect": "100-continue",
+        "ReleaseVersion": "OB54", "User-Agent": get_ua(),
+        "X-GA": "v1 1", "X-Unity-Version": "2018.4.",
+        "X-Forwarded-For": FastIPSpoofer.get_ip(),
+        "X-Real-IP": FastIPSpoofer.get_ip(),
+    }
+    resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=20)
+    if resp.status_code != 200:
+        raise Exception(f"MajorLogin HTTP {resp.status_code}: {resp.text}")
+    text = resp.text
+    jwt_start = text.find("eyJ")
+    if jwt_start == -1:
+        raise Exception("No JWT found in response")
+    jwt_token = text[jwt_start:]
+    second_dot = jwt_token.find(".", jwt_token.find(".") + 1)
+    if second_dot == -1:
+        raise Exception("Invalid JWT format")
+    jwt_token = jwt_token[:second_dot + 44]
+    try:
+        parts = jwt_token.split('.')
+        if len(parts) < 2:
+            raise Exception("JWT missing parts")
+        payload_part = parts[1]
+        padding = 4 - len(payload_part) % 4
+        if padding != 4:
+            payload_part += '=' * padding
+        decoded = base64.urlsafe_b64decode(payload_part)
+        data = json.loads(decoded)
+        account_id = data.get('account_id') or data.get('external_id')
+        if not account_id:
+            raise Exception("account_id not found in JWT")
+        return {"account_id": str(account_id), "jwt_token": jwt_token}
+    except Exception as e:
+        raise Exception(f"Failed to parse JWT: {e}")
+
+def dUdE(session, region_code, jwt_token):
+    base = get_base_url(region_code)
+    url = f"{base}/ChooseRegion"
+    if region_code.upper() == "CIS":
+        region_code = "ru"
+    else:
+        region_code = region_code.upper()
+    fields_dict = {"1": region_code}
+    plaintext = build_proto(fields_dict)
+    encrypted_payload = encrypt_api(plaintext.hex())
+    headers = {
+        "Accept-Encoding": "gzip", "Authorization": f"Bearer {jwt_token}",
+        "Connection": "Keep-Alive", "Content-Type": "application/x-www-form-urlencoded",
+        "Expect": "100-continue", "ReleaseVersion": "OB54",
+        "User-Agent": get_ua(), "X-GA": "v1 1", "X-Unity-Version": "2018.4.",
+        "X-Forwarded-For": FastIPSpoofer.get_ip(),
+        "X-Real-IP": FastIPSpoofer.get_ip(),
+    }
+    resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted_payload), timeout=20)
+    if resp.status_code != 200:
+        raise Exception(f"ChooseRegion HTTP {resp.status_code}: {resp.text}")
+    return True
+
+# ================== FUNGSI UTAMA ==================
+def create_account(region, account_name, password_prefix, is_ghost=False):
+    session = requests.Session()
+    try:
+        password = f"{password_prefix}_{''.join(random.choices('0123456789ABCDEF', k=16))}"
+        uid = RoFl(session, password)
+        access_token, open_id = lMaO(session, uid, password)
         name = generate_random_name(account_name)
-        lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
-        payload3 = {
-            1: name, 2: access_token, 3: open_id, 5: 102000007, 6: 4, 7: 1,
-            13: 1, 14: field, 15: lang, 16: 1, 17: 1
-        }
-        proto_bytes = build_proto(payload3)
-        encrypted = aes_encrypt(proto_bytes.hex())
-        headers3 = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "ReleaseVersion": "OB54",
-            "User-Agent": get_ua(),
-            "X-GA": "v1 1",
-            "X-Unity-Version": "2018.4.",
-            "X-Forwarded-For": FastIPSpoofer.get_ip(),
-            "X-Real-IP": FastIPSpoofer.get_ip(),
-        }
-        requests.post(url3, headers=headers3, data=encrypted, timeout=10)
-
-        # 5. MajorLogin (menggunakan payload biner dari moss.py asli)
-        login_result = major_login(uid, password, access_token, open_id, region, is_ghost)
-        if login_result.get('account_id') == 'N/A':
-            return None
+        gG(session, name, access_token, open_id, region, is_ghost)
+        login_result = nIcE(session, access_token, open_id, region, is_ghost)
         account_id = login_result['account_id']
-        jwt = login_result.get('jwt_token', '')
-
-        # 6. Force region bind
+        jwt = login_result['jwt_token']
         if not is_ghost and jwt and region.upper() != "BR":
             try:
-                force_region_bind(region, jwt)
-            except:
+                dUdE(session, region, jwt)
+            except Exception as e:
+                # Gagal force region tidak masalah
                 pass
-
         return {
             "uid": uid,
             "password": password,
@@ -188,76 +300,5 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
             "account_id": account_id,
             "jwt_token": jwt
         }
-    except Exception:
-        return None
-
-def major_login(uid, password, access_token, open_id, region, is_ghost):
-    try:
-        # Gunakan payload hardcoded dari moss.py (sudah teruji)
-        payload_parts = [
-            b'\x1a\x132025-08-30 05:19:21"\tfree fire(\x01:\x081.114.13B2Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)J\x08HandheldR\nATM MobilsZ\x04WIFI`\xb6\nh\xee\x05r\x03300z\x1fARMv7 VFPv3 NEON VMH | 2400 | 2\x80\x01\xc9\x0f\x8a\x01\x0fAdreno (TM) 640\x92\x01\rOpenGL ES 3.2\x9a\x01+Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f\xa2\x01\x0e105.235.139.91\xaa\x01\x02',
-            REGION_LANG.get(region.upper(), "en").encode("ascii") if not is_ghost else b'pt',
-            b'\xb2\x01 1d8ec0240ede109973f3321b9354b44d\xba\x01\x014\xc2\x01\x08Handheld\xca\x01\x10Asus ASUS_I005DA\xea\x01@afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390\xf0\x01\x01\xca\x02\nATM Mobils\xd2\x02\x04WIFI\xca\x03 7428b253defc164018c604a1ebbfebdf\xe0\x03\xa8\x81\x02\xe8\x03\xf6\xe5\x01\xf0\x03\xaf\x13\xf8\x03\x84\x07\x80\x04\xe7\xf0\x01\x88\x04\xa8\x81\x02\x90\x04\xe7\xf0\x01\x98\x04\xa8\x81\x02\xc8\x04\x01\xd2\x04=/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm\xe0\x04\x01\xea\x04_2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk\xf0\x04\x03\xf8\x04\x01\x8a\x05\x0232\x9a\x05\n2019118692\xb2\x05\tOpenGLES2\xb8\x05\xff\x7f\xc0\x05\x04\xe0\x05\xf3F\xea\x05\x07android\xf2\x05pKqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2\xf8\x05\xfb\xe4\x06\x88\x06\x01\x90\x06\x01\x9a\x06\x014\xa2\x06\x014\xb2\x06"GQ@O\x00\x0e^\x00D\x06UA\x0ePM\r\x13hZ\x07T\x06\x0cm\\V\x0ejYV;\x0bU5'
-        ]
-        payload = b''.join(payload_parts)
-        # Ganti placeholder dengan access_token dan open_id
-        payload = payload.replace(b'afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390', access_token.encode())
-        payload = payload.replace(b'1d8ec0240ede109973f3321b9354b44d', open_id.encode())
-
-        url = "https://loginbp.ggpolarbear.com/MajorLogin"
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "ReleaseVersion": "OB54",
-            "User-Agent": get_ua(),
-            "X-GA": "v1 1",
-            "X-Unity-Version": "2018.4.11f1",
-            "X-Forwarded-For": FastIPSpoofer.get_ip(),
-            "X-Real-IP": FastIPSpoofer.get_ip(),
-        }
-        encrypted_hex = encrypt_api(payload.hex())
-        resp = requests.post(url, headers=headers, data=bytes.fromhex(encrypted_hex), timeout=10)
-
-        if resp.status_code == 200 and 'eyJ' in resp.text:
-            text = resp.text
-            jwt_start = text.find("eyJ")
-            if jwt_start != -1:
-                jwt_token = text[jwt_start:]
-                second_dot = jwt_token.find(".", jwt_token.find(".") + 1)
-                if second_dot != -1:
-                    jwt_token = jwt_token[:second_dot + 44]
-                    try:
-                        parts = jwt_token.split('.')
-                        if len(parts) >= 2:
-                            payload_part = parts[1]
-                            padding = 4 - len(payload_part) % 4
-                            if padding != 4:
-                                payload_part += '=' * padding
-                            decoded = base64.urlsafe_b64decode(payload_part)
-                            data = json.loads(decoded)
-                            account_id = data.get('account_id') or data.get('external_id')
-                            if account_id:
-                                return {"account_id": str(account_id), "jwt_token": jwt_token}
-                    except:
-                        pass
-        return {"account_id": "N/A", "jwt_token": ""}
-    except:
-        return {"account_id": "N/A", "jwt_token": ""}
-
-def force_region_bind(region, jwt_token):
-    try:
-        url = "https://loginbp.ggpolarbear.com/ChooseRegion"
-        region_code = "RU" if region.upper() == "CIS" else region.upper()
-        proto = build_proto({1: region_code})
-        encrypted = encrypt_api(proto.hex())
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": f"Bearer {jwt_token}",
-            "X-Unity-Version": "2018.4.11f1",
-            "X-GA": "v1 1",
-            "ReleaseVersion": "OB54",
-            "X-Forwarded-For": FastIPSpoofer.get_ip(),
-            "X-Real-IP": FastIPSpoofer.get_ip(),
-        }
-        requests.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=10)
-    except:
-        pass
+    except Exception as e:
+        return {"error": str(e)}
