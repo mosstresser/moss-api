@@ -1,4 +1,4 @@
-# moss_core.py - FINAL FIX (password format, client secret)
+# moss_core.py - FINAL (perbaikan URL token grant)
 import os, sys, json, time, random, string, hashlib, base64, codecs, re, hmac
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -113,16 +113,21 @@ def RoFl(session, password):
         raise Exception(f"Register HTTP {resp.status_code}: {resp.text}")
 
 def lMaO(session, uid, password):
+    # PERBAIKAN: URL yang benar sesuai moss.py
     url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
     payload = {
-        "client_id":100067,
+        "client_id": 100067,
         "client_secret": CLIENT_SECRET,
-        "client_type":2,
-        "password":password,
-        "response_type":"token",
-        "uid":uid
+        "client_type": 2,
+        "password": password,
+        "response_type": "token",
+        "uid": uid
     }
-    headers = {"User-Agent": sUs(), "Content-Type": "application/json", "Accept": "application/json"}
+    headers = {
+        "User-Agent": sUs(),
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
     resp = session.post(url, json=payload, headers=headers, timeout=20)
     if resp.status_code != 200:
         raise Exception(f"Token grant HTTP {resp.status_code}: {resp.text}")
@@ -134,23 +139,37 @@ def lMaO(session, uid, password):
 def gG(session, name, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorRegister"
-    keystream = [0x30]*32  # placeholder (sebenarnya deret khusus tapi ini cukup)
+    # Encrypt open_id seperti di moss.py
+    keystream = [0x30]*32  # placeholder, sebenarnya deret khusus dari moss
     encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
     field_unicode = ''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded)
     field_bytes = codecs.decode(field_unicode, 'unicode_escape').encode('latin1')
     lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
     fields_dict = {
-        "1": name, "2": access_token, "3": open_id,
-        "5": 102000007, "6": 4, "7": 1, "13": 1,
-        "14": field_bytes, "15": lang, "16": 2
+        "1": name,
+        "2": access_token,
+        "3": open_id,
+        "5": 102000007,
+        "6": 4,
+        "7": 1,
+        "13": 1,
+        "14": field_bytes,
+        "15": lang,
+        "16": 2
     }
     plaintext = build_proto(fields_dict)
     encrypted_payload = aes_encrypt(plaintext.hex())
     headers = {
-        "Accept-Encoding": "gzip", "Authorization": "Bearer", "Connection": "Keep-Alive",
-        "Content-Type": "application/x-www-form-urlencoded", "Expect": "100-continue",
-        "Host": base.replace("https://", ""), "ReleaseVersion": "OB54",
-        "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
+        "Accept-Encoding": "gzip",
+        "Authorization": "Bearer",
+        "Connection": "Keep-Alive",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Expect": "100-continue",
+        "Host": base.replace("https://", ""),
+        "ReleaseVersion": "OB54",
+        "User-Agent": bRuH(),
+        "X-GA": "v1 1",
+        "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=encrypted_payload, timeout=20)
     if resp.status_code != 200:
@@ -208,10 +227,14 @@ def nIcE(session, access_token, open_id, region, is_ghost=False):
     proto = build_proto(fields)
     encrypted = encrypt_api(proto.hex())
     headers = {
-        "Accept-Encoding": "gzip", "Connection": "Keep-Alive",
-        "Content-Type": "application/x-www-form-urlencoded", "Expect": "100-continue",
-        "ReleaseVersion": "OB54", "User-Agent": bRuH(),
-        "X-GA": "v1 1", "X-Unity-Version": "2018.4."
+        "Accept-Encoding": "gzip",
+        "Connection": "Keep-Alive",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Expect": "100-continue",
+        "ReleaseVersion": "OB54",
+        "User-Agent": bRuH(),
+        "X-GA": "v1 1",
+        "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=20)
     if resp.status_code != 200:
@@ -253,10 +276,15 @@ def dUdE(session, region_code, jwt_token):
     plaintext = build_proto(fields_dict)
     encrypted_payload = encrypt_api(plaintext.hex())
     headers = {
-        "Accept-Encoding": "gzip", "Authorization": f"Bearer {jwt_token}",
-        "Connection": "Keep-Alive", "Content-Type": "application/x-www-form-urlencoded",
-        "Expect": "100-continue", "ReleaseVersion": "OB54",
-        "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
+        "Accept-Encoding": "gzip",
+        "Authorization": f"Bearer {jwt_token}",
+        "Connection": "Keep-Alive",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Expect": "100-continue",
+        "ReleaseVersion": "OB54",
+        "User-Agent": bRuH(),
+        "X-GA": "v1 1",
+        "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted_payload), timeout=20)
     if resp.status_code != 200:
