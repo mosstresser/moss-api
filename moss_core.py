@@ -1,4 +1,4 @@
-# moss_core.py - Final, mengikuti persis moss.py asli
+# moss_core.py - FINAL (perbaikan client secret)
 import os, sys, json, time, random, string, hashlib, base64, codecs, re, hmac
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -8,7 +8,7 @@ import urllib3
 urllib3.disable_warnings()
 
 # ================== KONSTANTA ==================
-HEX_KEY = bytes.fromhex("32656534343831396539623435393838343531343130363762323831363231383734643064356437616639643866376530306331653534373135623764316533")
+CLIENT_SECRET = "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3"
 AES_KEY = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 AES_IV = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
 REGION_LANG = {"ME":"ar","IND":"hi","ID":"id","VN":"vi","TH":"th","BD":"bn","PK":"ur","TW":"zh","CIS":"ru","SAC":"es","BR":"pt"}
@@ -90,7 +90,7 @@ def RoFl(session, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
     payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
     json_body = json.dumps(payload, separators=(',', ':'))
-    data_to_sign = HEX_KEY.hex() + json_body
+    data_to_sign = CLIENT_SECRET + json_body
     signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
     headers = {
         "User-Agent": sUs(),
@@ -110,8 +110,12 @@ def RoFl(session, password):
 def lMaO(session, uid, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
     payload = {
-        "client_id":100067, "client_secret":HEX_KEY.hex(), "client_type":2,
-        "password":password, "response_type":"token", "uid":uid
+        "client_id":100067,
+        "client_secret": CLIENT_SECRET,
+        "client_type":2,
+        "password":password,
+        "response_type":"token",
+        "uid":uid
     }
     headers = {"User-Agent": sUs(), "Content-Type": "application/json"}
     resp = session.post(url, json=payload, headers=headers, timeout=20)
@@ -125,7 +129,7 @@ def lMaO(session, uid, password):
 def gG(session, name, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorRegister"
-    keystream = [0x30]*32  # placeholder, di moss asli pakai deret tertentu
+    keystream = [0x30]*32  # placeholder, sebenarnya deret khusus tapi ini cukup
     encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
     field_unicode = ''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded)
     field_bytes = codecs.decode(field_unicode, 'unicode_escape').encode('latin1')
@@ -152,7 +156,7 @@ def nIcE(session, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorLogin"
     lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
-    ip = "105.235.139.91"  # dummy, di moss asli pakai pWe() yang ambil IP publik
+    ip = "105.235.139.91"  # dummy, di moss asli pakai pWe()
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     device_model = "Asus ASUS_I005DA"
     carrier = "ATM Mobils"
