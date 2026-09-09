@@ -1,5 +1,5 @@
-# moss_core.py - Versi ringkas dari app.py, tanpa Tor/Threading/UI
-import os, sys, json, time, random, string, hashlib, base64, codecs, re
+# moss_core.py - FIXED (signature & client_secret)
+import json, time, random, string, hashlib, base64, codecs
 from datetime import datetime
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
@@ -11,24 +11,18 @@ urllib3.disable_warnings()
 AES_KEY = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 AES_IV = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
 CLIENT_SECRET = "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3"
-REGION_LANG = {
-    "ME": "ar", "IND": "hi", "ID": "id", "VN": "vi", "TH": "th",
-    "BD": "bn", "PK": "ur", "TW": "zh", "CIS": "ru", "SAC": "es", "BR": "pt"
-}
-NICKXOR = b'1e5898ccb8dfdd921f9bdea848768b64a201'
+REGION_LANG = {"ME":"ar","IND":"hi","ID":"id","VN":"vi","TH":"th","BD":"bn","PK":"ur","TW":"zh","CIS":"ru","SAC":"es","BR":"pt"}
 
-# ================== USER-AGENT ==================
 def sUs():
     return "GarenaMSDK/4.0.39(FRL-AN00a ;Android 10;nu;HK;)"
 
 def bRuH():
     return "okhttp/3.12.1"
 
-# ================== PASSWORD GENERATOR ==================
 def yEet(length=6, chars=string.ascii_uppercase + string.digits + "-_."):
     return ''.join(random.choice(chars) for _ in range(length))
 
-# ================== ENKRIPSI & PROTOBUF ==================
+# ================== PROTOBUF ==================
 def FF(value):
     out = []
     while True:
@@ -121,7 +115,7 @@ def Pro(data):
             fields[field_num] = value
     return fields
 
-# ================== FUNGSI-FUNGSI DARI APP.PY ==================
+# ================== FUNGSI DARI APP.PY ==================
 def fInE(original):
     keystream = [0x30,0x30,0x30,0x32,0x30,0x31,0x37,0x30,0x30,0x30,0x30,0x30,0x32,0x30,0x31,0x37,
                  0x30,0x30,0x30,0x30,0x30,0x32,0x30,0x31,0x37,0x30,0x30,0x30,0x30,0x30,0x32,0x30]
@@ -142,12 +136,15 @@ def pWe():
     except:
         return "0.0.0.0"
 
+# ---------- PERBAIKAN: RoFl (signature dari json_body) ----------
 def RoFl(session, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
     payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
     json_body = json.dumps(payload, separators=(',', ':'))
-    data_to_sign = CLIENT_SECRET + json_body
-    signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
+    
+    # FIX: signature dari json_body saja
+    signature = hashlib.sha256(json_body.encode()).hexdigest()
+    
     headers = {
         "User-Agent": sUs(),
         "Authorization": f"Signature {signature}",
@@ -164,11 +161,16 @@ def RoFl(session, password):
         resp.raise_for_status()
         raise Exception(f"Unexpected response: {resp.text}")
 
+# ---------- PERBAIKAN: lMaO (client_secret string) ----------
 def lMaO(session, uid, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
     payload = {
-        "client_id":100067, "client_secret":CLIENT_SECRET, "client_type":2,
-        "password":password, "response_type":"token", "uid":uid
+        "client_id": 100067,
+        "client_secret": CLIENT_SECRET,  # string
+        "client_type": 2,
+        "password": password,
+        "response_type": "token",
+        "uid": uid
     }
     headers = {"User-Agent": sUs(), "Content-Type": "application/json"}
     resp = session.post(url, json=payload, headers=headers, timeout=10)
@@ -321,38 +323,30 @@ def dUdE(session, region_code, jwt_token):
 def create_account(region, account_name, password_prefix, is_ghost=False):
     session = requests.Session()
     try:
-        # 1. Generate password
         r1 = yEet(6)
         r2 = yEet(6)
         password = f"{password_prefix.upper()}_{r1}-VAIBHAV{r2}"
         
-        # 2. Register → uid
         uid = RoFl(session, password)
-        
-        # 3. Token → access_token, open_id
         access_token, open_id = lMaO(session, uid, password)
         
-        # 4. MajorRegister → account_id (field 3)
         name_prefix = account_name[:7]
         reg_resp = gG(session, name_prefix, access_token, open_id, region, is_ghost)
         account_id = str(reg_resp.get(3))
         if not account_id:
             raise Exception("No account_id")
         
-        # 5. MajorLogin → JWT
         lang_code = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
         login_resp, jwt_token = nIcE(session, access_token, open_id, region, lang_code)
         if not jwt_token:
             raise Exception("No JWT")
         
-        # 6. Force region bind (jika bukan ghost dan bukan BR)
         if not is_ghost and jwt_token and region.upper() != "BR":
             try:
                 dUdE(session, region, jwt_token)
             except:
                 pass
         
-        # 7. Nama final
         exp_digits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'}
         num = random.randint(1,99999)
         exp = ''.join(exp_digits[d] for d in f"{num:05d}")
