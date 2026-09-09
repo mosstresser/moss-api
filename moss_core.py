@@ -1,4 +1,4 @@
-# moss_core.py - FINAL (perbaikan client secret)
+# moss_core.py - FINAL FIX (password format, client secret)
 import os, sys, json, time, random, string, hashlib, base64, codecs, re, hmac
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -19,6 +19,10 @@ def sUs():
 
 def bRuH():
     return "okhttp/3.12.1"
+
+# ================== PASSWORD GENERATOR (seperti yEet di asli) ==================
+def yEet(length=6, chars=string.ascii_uppercase + string.digits + "-_."):
+    return ''.join(random.choice(chars) for _ in range(length))
 
 # ================== ENKRIPSI & PROTOBUF ==================
 def encode_varint(n):
@@ -95,7 +99,8 @@ def RoFl(session, password):
     headers = {
         "User-Agent": sUs(),
         "Authorization": f"Signature {signature}",
-        "Content-Type": "application/json; charset=utf-8"
+        "Content-Type": "application/json; charset=utf-8",
+        "Accept": "application/json"
     }
     resp = session.post(url, data=json_body, headers=headers, timeout=20)
     if resp.status_code == 200:
@@ -117,7 +122,7 @@ def lMaO(session, uid, password):
         "response_type":"token",
         "uid":uid
     }
-    headers = {"User-Agent": sUs(), "Content-Type": "application/json"}
+    headers = {"User-Agent": sUs(), "Content-Type": "application/json", "Accept": "application/json"}
     resp = session.post(url, json=payload, headers=headers, timeout=20)
     if resp.status_code != 200:
         raise Exception(f"Token grant HTTP {resp.status_code}: {resp.text}")
@@ -129,7 +134,7 @@ def lMaO(session, uid, password):
 def gG(session, name, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorRegister"
-    keystream = [0x30]*32  # placeholder, sebenarnya deret khusus tapi ini cukup
+    keystream = [0x30]*32  # placeholder (sebenarnya deret khusus tapi ini cukup)
     encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
     field_unicode = ''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded)
     field_bytes = codecs.decode(field_unicode, 'unicode_escape').encode('latin1')
@@ -262,7 +267,11 @@ def dUdE(session, region_code, jwt_token):
 def create_account(region, account_name, password_prefix, is_ghost=False):
     session = requests.Session()
     try:
-        password = f"{password_prefix}_{''.join(random.choices('0123456789ABCDEF', k=16))}"
+        # Generate password seperti di moss.py asli
+        r1 = yEet(6)
+        r2 = yEet(6)
+        password = f"{password_prefix.upper()}_{r1}-VAIBHAV{r2}"
+        
         uid = RoFl(session, password)
         access_token, open_id = lMaO(session, uid, password)
         name = generate_random_name(account_name)
