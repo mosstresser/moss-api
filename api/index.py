@@ -4,26 +4,34 @@ from typing import Optional
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import sys, os
+
+# Tambahkan path parent agar bisa import moss_core
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from moss_core import create_account
 
-app = FastAPI(title="Moss API")
+app = FastAPI(title="Moss API (app.py based)")
 executor = ThreadPoolExecutor(max_workers=5)
 
 @app.get("/")
 async def root():
-    return {"message": "Moss API running"}
+    return {"message": "Moss API running. Use /generate endpoint."}
 
 @app.get("/generate")
 async def generate(
-    region: str = Query(..., description="ME, IND, ID, VN, TH, BD, PK, TW, CIS, SAC"),
-    name_prefix: str = Query("moss"),
-    pass_prefix: str = Query("moss"),
-    target: int = Query(1, ge=1, le=5),
-    ghost: bool = Query(False),
+    region: str = Query(..., description="Region: ME, IND, ID, VN, TH, BD, PK, TW, CIS, SAC, BR"),
+    name_prefix: str = Query("moss", description="Nama depan (max 7 karakter)"),
+    pass_prefix: str = Query("moss", description="Prefiks password"),
+    target: int = Query(1, ge=1, le=5, description="Jumlah akun (max 5)"),
+    ghost: bool = Query(False, description="Mode Ghost (tanpa region)"),
 ):
+    """
+    Generate akun Free Fire menggunakan engine dari app.py
+    """
     loop = asyncio.get_event_loop()
-    tasks = [loop.run_in_executor(executor, create_account, region, name_prefix, pass_prefix, ghost) for _ in range(target)]
+    tasks = [
+        loop.run_in_executor(executor, create_account, region, name_prefix, pass_prefix, ghost)
+        for _ in range(target)
+    ]
     results = await asyncio.gather(*tasks)
     
     success = []

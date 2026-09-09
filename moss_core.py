@@ -1,324 +1,74 @@
-# moss_core.py - FINAL (perbaikan URL token grant)
-import os, sys, json, time, random, string, hashlib, base64, codecs, re, hmac
-from datetime import datetime
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
+# moss_core.py
 import requests
-import urllib3
-urllib3.disable_warnings()
+import random
+import string
+from datetime import datetime
 
-# ================== KONSTANTA ==================
-CLIENT_SECRET = "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3"
-AES_KEY = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
-AES_IV = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
-REGION_LANG = {"ME":"ar","IND":"hi","ID":"id","VN":"vi","TH":"th","BD":"bn","PK":"ur","TW":"zh","CIS":"ru","SAC":"es","BR":"pt"}
-
-# ================== USER-AGENT ==================
-def sUs():
-    return "GarenaMSDK/4.0.39(FRL-AN00a ;Android 10;nu;HK;)"
-
-def bRuH():
-    return "okhttp/3.12.1"
-
-# ================== PASSWORD GENERATOR (seperti yEet di asli) ==================
-def yEet(length=6, chars=string.ascii_uppercase + string.digits + "-_."):
-    return ''.join(random.choice(chars) for _ in range(length))
-
-# ================== ENKRIPSI & PROTOBUF ==================
-def encode_varint(n):
-    if n < 0: return b''
-    result = []
-    while True:
-        byte = n & 0x7F
-        n >>= 7
-        if n: byte |= 0x80
-        result.append(byte)
-        if not n: break
-    return bytes(result)
-
-def create_proto_field(field_num, value):
-    if isinstance(value, dict):
-        nested = create_proto_field(field_num, value)
-        header = (field_num << 3) | 2
-        return encode_varint(header) + encode_varint(len(nested)) + nested
-    elif isinstance(value, int):
-        header = (field_num << 3) | 0
-        return encode_varint(header) + encode_varint(value)
-    elif isinstance(value, (str, bytes)):
-        encoded_val = value.encode() if isinstance(value, str) else value
-        header = (field_num << 3) | 2
-        return encode_varint(header) + encode_varint(len(encoded_val)) + encoded_val
-    return b''
-
-def build_proto(fields):
-    return b''.join(create_proto_field(k, v) for k, v in fields.items())
-
-def aes_encrypt(hex_data):
-    data = bytes.fromhex(hex_data)
-    cipher = AES.new(AES_KEY, AES.MODE_CBC, AES_IV)
-    return cipher.encrypt(pad(data, AES.block_size))
-
-def encrypt_api(plain_hex):
-    plain = bytes.fromhex(plain_hex)
-    cipher = AES.new(AES_KEY, AES.MODE_CBC, AES_IV)
-    return cipher.encrypt(pad(plain, AES.block_size)).hex()
-
-# ================== NAMA RANDOM ==================
-WRAPPING_PAIRS = [('꧁','꧂'),('『','』'),('【','】'),('《','》'),('〈','〉'),('〔','〕'),('〖','〗'),('〘','〙'),('〚','〛'),('❬','❭'),('❮','❯'),('⦅','⦆'),('⟦','⟧'),('⟨','⟩'),('⫷','⫸')]
-SINGLE_SYMBOLS = ['☆','★','✧','✦','✩','✪','✫','✬','✭','✮','✯','✰','♡','♥','❤','❥','❦','❧','ゝ','々','〆','⁂','※','⁑']
+# Impor semua fungsi dari app.py
+from app import (
+    RoFl, lMaO, gG, nIcE, dUdE, 
+    rEgIoNlAnG, yEet, sUs, bRuH,
+    Noob, xPro, Pro, fInE, yAy, codecs
+)
 
 def generate_exponent():
+    """Menghasilkan eksponen seperti di app.py (5 digit dengan superskrip)"""
     exp_digits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'}
-    num = random.randint(1, 9999)
-    return ''.join(exp_digits[d] for d in f"{num:04d}")
+    num = random.randint(1, 99999)
+    return ''.join(exp_digits[d] for d in f"{num:05d}")
 
-def generate_random_name(base):
-    exponent = generate_exponent()
-    rand = random.random()
-    if rand < 0.4:
-        left, right = random.choice(WRAPPING_PAIRS)
-        return f"{left}{base}{right}{exponent}"
-    elif rand < 0.7:
-        return f"{base}{random.choice(SINGLE_SYMBOLS)}{exponent}"
-    else:
-        return f"{base}_{exponent}"
-
-# ================== FUNGSI DARI MOSS.PY ASLI ==================
-def get_base_url(region):
-    if region.upper() in ["ME", "TH"]:
-        return "https://loginbp.common.ggbluefox.com"
-    else:
-        return "https://loginbp.ggpolarbear.com"
-
-def RoFl(session, password):
-    url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
-    payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
-    json_body = json.dumps(payload, separators=(',', ':'))
-    data_to_sign = CLIENT_SECRET + json_body
-    signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
-    headers = {
-        "User-Agent": sUs(),
-        "Authorization": f"Signature {signature}",
-        "Content-Type": "application/json; charset=utf-8",
-        "Accept": "application/json"
-    }
-    resp = session.post(url, data=json_body, headers=headers, timeout=20)
-    if resp.status_code == 200:
-        data = resp.json()
-        if data.get("code") == 0:
-            return str(data["data"]["uid"])
-        else:
-            raise Exception(f"Register failed: {data}")
-    else:
-        raise Exception(f"Register HTTP {resp.status_code}: {resp.text}")
-
-def lMaO(session, uid, password):
-    # PERBAIKAN: URL yang benar sesuai moss.py
-    url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
-    payload = {
-        "client_id": 100067,
-        "client_secret": CLIENT_SECRET,
-        "client_type": 2,
-        "password": password,
-        "response_type": "token",
-        "uid": uid
-    }
-    headers = {
-        "User-Agent": sUs(),
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-    resp = session.post(url, json=payload, headers=headers, timeout=20)
-    if resp.status_code != 200:
-        raise Exception(f"Token grant HTTP {resp.status_code}: {resp.text}")
-    data = resp.json()
-    if data.get("code") != 0:
-        raise Exception(f"Token grant failed: {data}")
-    return data["data"]["access_token"], data["data"]["open_id"]
-
-def gG(session, name, access_token, open_id, region, is_ghost=False):
-    base = get_base_url(region)
-    url = f"{base}/MajorRegister"
-    # Encrypt open_id seperti di moss.py
-    keystream = [0x30]*32  # placeholder, sebenarnya deret khusus dari moss
-    encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
-    field_unicode = ''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded)
-    field_bytes = codecs.decode(field_unicode, 'unicode_escape').encode('latin1')
-    lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
-    fields_dict = {
-        "1": name,
-        "2": access_token,
-        "3": open_id,
-        "5": 102000007,
-        "6": 4,
-        "7": 1,
-        "13": 1,
-        "14": field_bytes,
-        "15": lang,
-        "16": 2
-    }
-    plaintext = build_proto(fields_dict)
-    encrypted_payload = aes_encrypt(plaintext.hex())
-    headers = {
-        "Accept-Encoding": "gzip",
-        "Authorization": "Bearer",
-        "Connection": "Keep-Alive",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Expect": "100-continue",
-        "Host": base.replace("https://", ""),
-        "ReleaseVersion": "OB54",
-        "User-Agent": bRuH(),
-        "X-GA": "v1 1",
-        "X-Unity-Version": "2018.4."
-    }
-    resp = session.post(url, headers=headers, data=encrypted_payload, timeout=20)
-    if resp.status_code != 200:
-        raise Exception(f"MajorRegister HTTP {resp.status_code}: {resp.text}")
-    return True
-
-def nIcE(session, access_token, open_id, region, is_ghost=False):
-    base = get_base_url(region)
-    url = f"{base}/MajorLogin"
-    lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
-    ip = "105.235.139.91"  # dummy, di moss asli pakai pWe()
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    device_model = "Asus ASUS_I005DA"
-    carrier = "ATM Mobils"
-    city = "Dhaka"
-    gpu = "Adreno (TM) 640"
-    fields = {
-        3: now_str,
-        4: "free fire",
-        5: 1,
-        7: "1.126.5",
-        8: "Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)",
-        9: "Handheld",
-        10: carrier,
-        11: "WIFI",
-        17: gpu,
-        18: "OpenGL ES 3.2",
-        19: "Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f",
-        20: ip,
-        21: lang,
-        22: open_id,
-        23: 4,
-        24: "Handheld",
-        25: device_model,
-        26: region.upper(),
-        29: access_token,
-        33: carrier,
-        34: "WIFI",
-        37: "7428b253defc164018c604a1ebbfebdf",
-        73: "/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm",
-        75: "2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk",
-        76: 2,
-        78: 2,
-        79: 2,
-        83: "OpenGLES2",
-        85: city,
-        87: "android",
-        88: "KqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2",
-        90: '{"cur_rate":null,"support_etc2":false}',
-        97: 1,
-        98: 1,
-        99: "4",
-        100: "4"
-    }
-    proto = build_proto(fields)
-    encrypted = encrypt_api(proto.hex())
-    headers = {
-        "Accept-Encoding": "gzip",
-        "Connection": "Keep-Alive",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Expect": "100-continue",
-        "ReleaseVersion": "OB54",
-        "User-Agent": bRuH(),
-        "X-GA": "v1 1",
-        "X-Unity-Version": "2018.4."
-    }
-    resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=20)
-    if resp.status_code != 200:
-        raise Exception(f"MajorLogin HTTP {resp.status_code}: {resp.text}")
-    text = resp.text
-    jwt_start = text.find("eyJ")
-    if jwt_start == -1:
-        raise Exception("No JWT found in response")
-    jwt_token = text[jwt_start:]
-    second_dot = jwt_token.find(".", jwt_token.find(".") + 1)
-    if second_dot == -1:
-        raise Exception("Invalid JWT format")
-    jwt_token = jwt_token[:second_dot + 44]
-    try:
-        parts = jwt_token.split('.')
-        if len(parts) < 2:
-            raise Exception("JWT missing parts")
-        payload_part = parts[1]
-        padding = 4 - len(payload_part) % 4
-        if padding != 4:
-            payload_part += '=' * padding
-        decoded = base64.urlsafe_b64decode(payload_part)
-        data = json.loads(decoded)
-        account_id = data.get('account_id') or data.get('external_id')
-        if not account_id:
-            raise Exception("account_id not found in JWT")
-        return {"account_id": str(account_id), "jwt_token": jwt_token}
-    except Exception as e:
-        raise Exception(f"Failed to parse JWT: {e}")
-
-def dUdE(session, region_code, jwt_token):
-    base = get_base_url(region_code)
-    url = f"{base}/ChooseRegion"
-    if region_code.upper() == "CIS":
-        region_code = "ru"
-    else:
-        region_code = region_code.upper()
-    fields_dict = {"1": region_code}
-    plaintext = build_proto(fields_dict)
-    encrypted_payload = encrypt_api(plaintext.hex())
-    headers = {
-        "Accept-Encoding": "gzip",
-        "Authorization": f"Bearer {jwt_token}",
-        "Connection": "Keep-Alive",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Expect": "100-continue",
-        "ReleaseVersion": "OB54",
-        "User-Agent": bRuH(),
-        "X-GA": "v1 1",
-        "X-Unity-Version": "2018.4."
-    }
-    resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted_payload), timeout=20)
-    if resp.status_code != 200:
-        raise Exception(f"ChooseRegion HTTP {resp.status_code}: {resp.text}")
-    return True
-
-# ================== FUNGSI UTAMA ==================
 def create_account(region, account_name, password_prefix, is_ghost=False):
-    session = requests.Session()
+    """
+    Membuat satu akun Free Fire.
+    Mengembalikan dict atau dict dengan key 'error' jika gagal.
+    """
+    session = requests.Session()  # session baru untuk setiap panggilan
     try:
-        # Generate password seperti di moss.py asli
+        # 1. Generate password seperti di app.py
         r1 = yEet(6)
         r2 = yEet(6)
         password = f"{password_prefix.upper()}_{r1}-VAIBHAV{r2}"
         
+        # 2. Register guest → dapat uid
         uid = RoFl(session, password)
+        
+        # 3. Dapatkan access_token dan open_id
         access_token, open_id = lMaO(session, uid, password)
-        name = generate_random_name(account_name)
-        gG(session, name, access_token, open_id, region, is_ghost)
-        login_result = nIcE(session, access_token, open_id, region, is_ghost)
-        account_id = login_result['account_id']
-        jwt = login_result['jwt_token']
-        if not is_ghost and jwt and region.upper() != "BR":
+        
+        # 4. Siapkan nama (prefix saja, nanti di gG ditambah exponent)
+        name_prefix = account_name[:7]
+        
+        # 5. MajorRegister → dapat account_id (field 3)
+        reg_resp = gG(session, name_prefix, access_token, open_id, region, is_ghost)
+        account_id = reg_resp.get(3)
+        if not account_id:
+            raise Exception("No account_id")
+        account_id = str(account_id)
+        
+        # 6. MajorLogin → dapat JWT
+        lang_code = "pt" if is_ghost else rEgIoNlAnG.get(region.upper(), "en")
+        login_resp, jwt_token = nIcE(session, access_token, open_id, region, lang_code)
+        if not jwt_token:
+            raise Exception("No JWT")
+        
+        # 7. Force region bind (jika bukan ghost dan bukan BR)
+        if not is_ghost and jwt_token and region.upper() != "BR":
             try:
-                dUdE(session, region, jwt)
+                dUdE(session, region, jwt_token)
             except Exception:
-                pass
+                pass  # gagal bind tidak masalah
+        
+        # 8. Buat nama final (sama seperti yang dihasilkan gG)
+        final_name = name_prefix + generate_exponent()
+        
         return {
             "uid": uid,
             "password": password,
-            "name": name,
+            "name": final_name,
             "region": "GHOST" if is_ghost else region.upper(),
             "account_id": account_id,
-            "jwt_token": jwt
+            "jwt_token": jwt_token
         }
+        
     except Exception as e:
         return {"error": str(e)}
