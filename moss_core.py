@@ -1,4 +1,4 @@
-# moss_core.py - Final dengan perbaikan
+# moss_core.py - Final, mengikuti persis moss.py asli
 import os, sys, json, time, random, string, hashlib, base64, codecs, re, hmac
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -13,21 +13,12 @@ AES_KEY = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 AES_IV = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
 REGION_LANG = {"ME":"ar","IND":"hi","ID":"id","VN":"vi","TH":"th","BD":"bn","PK":"ur","TW":"zh","CIS":"ru","SAC":"es","BR":"pt"}
 
-# ================== IP SPOOFER & UA ==================
-class FastIPSpoofer:
-    _IP_POOL = [f"{random.randint(1,254)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}" for _ in range(5000)]
-    _IP_INDEX = 0
-    @classmethod
-    def get_ip(cls):
-        ip = cls._IP_POOL[cls._IP_INDEX % len(cls._IP_POOL)]
-        cls._IP_INDEX += 1
-        return ip
+# ================== USER-AGENT ==================
+def sUs():
+    return "GarenaMSDK/4.0.39(FRL-AN00a ;Android 10;nu;HK;)"
 
-def get_ua():
-    versions = ["4.0.19P8","4.0.39","4.0.40"]
-    android = ["11","12","13","14"]
-    devices = ["SM-A325M","SM-A525F","SM-A536B","SM-A736B","SM-A715F","SM-A725F","SM-A515F","SM-A127F","SM-A226B","SM-A326B","SM-M325F","SM-M515F","SM-G991B","SM-G996B","SM-G998B","SM-S901B","SM-S906B","SM-S908B","SM-G781B","SM-G770F","SM-G973F","SM-G960F","SM-N986B","SM-N976B","SM-F711B","SM-F926B","SM-F731B","SM-F936B","M2012K11AG","M2101K7AG","MZB08A","Redmi Note 9","Redmi Note 10","Redmi Note 11","Redmi Note 12","Redmi 8","Redmi 9","Redmi 10","Poco X3","Poco X3 Pro","POCO F3","POCO F4","POCO M3","POCO M4 Pro","11T Pro","Mi 11","Mi 11 Lite","Mi 12","Mi 13","CPH2249","CPH2333","CPH2025","OPPO A74","OPPO A96","OPPO A77","OPPO Reno5","OPPO Reno6","OPPO Reno7","OPPO Reno8","OPPO F19","OPPO F21 Pro","V2046","V2050","V2024","vivo 1906","vivo V21","vivo V23","vivo V25","vivo Y72","vivo Y20","vivo Y75","vivo Y55","vivo X60","vivo T1","RMX3370","RMX3392","RMX2020","RMX3081","realme 7","realme 8","realme 9","realme GT","realme GT Neo","realme 9 Pro","realme 9i","realme C25","realme C31","realme C35","Pixel 4a","Pixel 5","Pixel 6","Pixel 6a","Pixel 7","Pixel 7 Pro","OnePlus 8","OnePlus 8T","OnePlus 9","OnePlus 10 Pro","OnePlus Nord","OnePlus Nord 2","Nokia 8.1","Nokia 7.2","Nokia 6.2","Nokia X20","Nokia X10","Nokia G50","ASUS_Z01QD","Asus ZenFone 8","Asus ZenFone 9","Asus ROG Phone 5","Asus ROG Phone 6","Infinix X6815","Infinix X6831","Infinix Zero 5G","TECNO KI5q","TECNO CK8n","Tecno Camon 19","Nothing Phone (1)"]
-    return f"GarenaMSDK/{random.choice(versions)}({random.choice(devices)};Android {random.choice(android)};en;ID;)"
+def bRuH():
+    return "okhttp/3.12.1"
 
 # ================== ENKRIPSI & PROTOBUF ==================
 def encode_varint(n):
@@ -102,11 +93,9 @@ def RoFl(session, password):
     data_to_sign = HEX_KEY.hex() + json_body
     signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
     headers = {
-        "User-Agent": get_ua(),
+        "User-Agent": sUs(),
         "Authorization": f"Signature {signature}",
-        "Content-Type": "application/json; charset=utf-8",
-        "X-Forwarded-For": FastIPSpoofer.get_ip(),
-        "X-Real-IP": FastIPSpoofer.get_ip(),
+        "Content-Type": "application/json; charset=utf-8"
     }
     resp = session.post(url, data=json_body, headers=headers, timeout=20)
     if resp.status_code == 200:
@@ -124,9 +113,7 @@ def lMaO(session, uid, password):
         "client_id":100067, "client_secret":HEX_KEY.hex(), "client_type":2,
         "password":password, "response_type":"token", "uid":uid
     }
-    headers = {"User-Agent": get_ua(), "Content-Type": "application/json",
-               "X-Forwarded-For": FastIPSpoofer.get_ip(),
-               "X-Real-IP": FastIPSpoofer.get_ip()}
+    headers = {"User-Agent": sUs(), "Content-Type": "application/json"}
     resp = session.post(url, json=payload, headers=headers, timeout=20)
     if resp.status_code != 200:
         raise Exception(f"Token grant HTTP {resp.status_code}: {resp.text}")
@@ -138,7 +125,7 @@ def lMaO(session, uid, password):
 def gG(session, name, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorRegister"
-    keystream = [0x30]*32
+    keystream = [0x30]*32  # placeholder, di moss asli pakai deret tertentu
     encoded = "".join(chr(ord(open_id[i]) ^ keystream[i % len(keystream)]) for i in range(len(open_id)))
     field_unicode = ''.join(c if 32 <= ord(c) <= 126 else f'\\u{ord(c):04x}' for c in encoded)
     field_bytes = codecs.decode(field_unicode, 'unicode_escape').encode('latin1')
@@ -154,21 +141,18 @@ def gG(session, name, access_token, open_id, region, is_ghost=False):
         "Accept-Encoding": "gzip", "Authorization": "Bearer", "Connection": "Keep-Alive",
         "Content-Type": "application/x-www-form-urlencoded", "Expect": "100-continue",
         "Host": base.replace("https://", ""), "ReleaseVersion": "OB54",
-        "User-Agent": get_ua(), "X-GA": "v1 1", "X-Unity-Version": "2018.4.",
-        "X-Forwarded-For": FastIPSpoofer.get_ip(),
-        "X-Real-IP": FastIPSpoofer.get_ip(),
+        "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=encrypted_payload, timeout=20)
     if resp.status_code != 200:
         raise Exception(f"MajorRegister HTTP {resp.status_code}: {resp.text}")
-    # Tidak perlu parse, asal sukses
     return True
 
 def nIcE(session, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorLogin"
     lang = "pt" if is_ghost else REGION_LANG.get(region.upper(), "en")
-    ip = FastIPSpoofer.get_ip()
+    ip = "105.235.139.91"  # dummy, di moss asli pakai pWe() yang ambil IP publik
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     device_model = "Asus ASUS_I005DA"
     carrier = "ATM Mobils"
@@ -217,10 +201,8 @@ def nIcE(session, access_token, open_id, region, is_ghost=False):
     headers = {
         "Accept-Encoding": "gzip", "Connection": "Keep-Alive",
         "Content-Type": "application/x-www-form-urlencoded", "Expect": "100-continue",
-        "ReleaseVersion": "OB54", "User-Agent": get_ua(),
-        "X-GA": "v1 1", "X-Unity-Version": "2018.4.",
-        "X-Forwarded-For": FastIPSpoofer.get_ip(),
-        "X-Real-IP": FastIPSpoofer.get_ip(),
+        "ReleaseVersion": "OB54", "User-Agent": bRuH(),
+        "X-GA": "v1 1", "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted), timeout=20)
     if resp.status_code != 200:
@@ -265,9 +247,7 @@ def dUdE(session, region_code, jwt_token):
         "Accept-Encoding": "gzip", "Authorization": f"Bearer {jwt_token}",
         "Connection": "Keep-Alive", "Content-Type": "application/x-www-form-urlencoded",
         "Expect": "100-continue", "ReleaseVersion": "OB54",
-        "User-Agent": get_ua(), "X-GA": "v1 1", "X-Unity-Version": "2018.4.",
-        "X-Forwarded-For": FastIPSpoofer.get_ip(),
-        "X-Real-IP": FastIPSpoofer.get_ip(),
+        "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=bytes.fromhex(encrypted_payload), timeout=20)
     if resp.status_code != 200:
@@ -289,8 +269,7 @@ def create_account(region, account_name, password_prefix, is_ghost=False):
         if not is_ghost and jwt and region.upper() != "BR":
             try:
                 dUdE(session, region, jwt)
-            except Exception as e:
-                # Gagal force region tidak masalah
+            except Exception:
                 pass
         return {
             "uid": uid,
