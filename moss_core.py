@@ -1,5 +1,5 @@
-# moss_core.py - FINAL dengan hardcode password untuk debugging
-import json, time, random, string, hashlib, base64, codecs
+# moss_core.py - FINAL dengan dual signature dan hardcode password
+import json, time, random, string, hashlib, base64, codecs, hmac
 from datetime import datetime
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
@@ -142,21 +142,29 @@ def pWe():
     except:
         return "0.0.0.0"
 
-# ---------- RoFl dengan detail request ----------
-def RoFl(session, password):
+# ---------- RoFl dengan dua metode signature ----------
+def RoFl(session, password, use_hmac=False):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
     payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
     json_body = json.dumps(payload, separators=(',', ':'))
-    data_to_sign = CLIENT_SECRET + json_body
-    signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
+    
+    if use_hmac:
+        # Metode HMAC (dicoba jika concat gagal)
+        signature = hmac.new(CLIENT_SECRET.encode(), json_body.encode(), hashlib.sha256).hexdigest()
+    else:
+        # Metode app.py (concat + sha256)
+        data_to_sign = CLIENT_SECRET + json_body
+        signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
+    
     headers = {
         "User-Agent": sUs(),
         "Authorization": f"Signature {signature}",
         "Content-Type": "application/json; charset=utf-8",
         "Accept": "application/json",
-        "Accept-Encoding": "gzip"
+        "Accept-Encoding": "gzip",
+        "X-Forwarded-For": f"{random.randint(1,254)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}"
     }
-    resp = session.post(url, data=json_body, headers=headers, timeout=10)
+    resp = session.post(url, data=json_body, headers=headers, timeout=10, verify=False)
     if resp.status_code == 200:
         data = resp.json()
         if data.get("code") == 0:
@@ -168,9 +176,7 @@ def RoFl(session, password):
             error_body = resp.json()
         except:
             error_body = resp.text
-        # Sertakan detail request untuk debugging
-        debug_info = f"Payload: {json_body} | Signature: {signature} | Headers: {headers}"
-        raise Exception(f"HTTP {resp.status_code} | Body: {error_body} | Debug: {debug_info}")
+        raise Exception(f"HTTP {resp.status_code} | Body: {error_body} | Method: {'HMAC' if use_hmac else 'CONCAT'} | Sig: {signature}")
 
 # ---------- lMaO ----------
 def lMaO(session, uid, password):
@@ -184,7 +190,7 @@ def lMaO(session, uid, password):
         "uid": uid
     }
     headers = {"User-Agent": sUs(), "Content-Type": "application/json", "Accept": "application/json"}
-    resp = session.post(url, json=payload, headers=headers, timeout=10)
+    resp = session.post(url, json=payload, headers=headers, timeout=10, verify=False)
     if resp.status_code != 200:
         try:
             error_body = resp.json()
@@ -228,7 +234,7 @@ def gG(session, name, access_token, open_id, region, is_ghost=False):
         "Host": host, "ReleaseVersion": "OB54",
         "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
     }
-    resp = session.post(url, headers=headers, data=encrypted_payload, timeout=15)
+    resp = session.post(url, headers=headers, data=encrypted_payload, timeout=15, verify=False)
     if resp.status_code != 200:
         try:
             error_body = resp.json()
@@ -329,7 +335,7 @@ def nIcE(session, access_token, open_id, region, lang_code):
         "X-GA": "v1 1", 
         "X-Unity-Version": "2018.4."
     }
-    resp = session.post(url, headers=headers, data=encrypted, timeout=15)
+    resp = session.post(url, headers=headers, data=encrypted, timeout=15, verify=False)
     if resp.status_code != 200:
         try:
             error_body = resp.json()
@@ -359,7 +365,7 @@ def dUdE(session, region_code, jwt_token):
         "Expect": "100-continue", "ReleaseVersion": "OB54",
         "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
     }
-    resp = session.post(url, headers=headers, data=encrypted_payload, timeout=10)
+    resp = session.post(url, headers=headers, data=encrypted_payload, timeout=10, verify=False)
     if resp.status_code != 200:
         try:
             error_body = resp.json()
@@ -372,17 +378,24 @@ def dUdE(session, region_code, jwt_token):
 def create_account(region, account_name, password_prefix, is_ghost=False):
     session = requests.Session()
     try:
-        # ====== DEBUG: Gunakan password hardcoded dari app.py yang berhasil ======
-        # Contoh password yang pernah berhasil di app.py: "SPIDY_R5R6N1-VAIBHAVXYZABC"
-        # Kita akan coba hardcode dulu
+        # 1. Hardcode password dari contoh di app.py (untuk debugging)
         # password = "SPIDY_R5R6N1-VAIBHAVXYZABC"
-        # Tapi kita juga coba generate dengan format yang sama
+        # 2. Atau generate dengan format yang sama
         r1 = yEet(6)
         r2 = yEet(6)
         password = f"{password_prefix.upper()}_{r1}-VAIBHAV{r2}"
-        # password = "SPIDY_R5R6N1-VAIBHAVXYZABC"  # uncomment untuk hardcode
         
-        uid = RoFl(session, password)
+        # Coba metode CONCAT dulu
+        try:
+            uid = RoFl(session, password, use_hmac=False)
+        except Exception as e:
+            # Jika gagal, coba metode HMAC
+            try:
+                uid = RoFl(session, password, use_hmac=True)
+            except Exception as e2:
+                # Jika keduanya gagal, lemparkan error terakhir
+                raise Exception(f"CONCAT failed: {e} | HMAC failed: {e2}")
+        
         access_token, open_id = lMaO(session, uid, password)
         
         name_prefix = account_name[:7]
