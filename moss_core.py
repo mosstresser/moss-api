@@ -1,4 +1,4 @@
-# moss_core.py - FINAL (fix signature, domain, dll)
+# moss_core.py - FINAL (debug 400)
 import json, time, random, string, hashlib, base64, codecs
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -19,7 +19,6 @@ INDIAN_CITIES = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkat
 INDIAN_CARRIERS = ["Jio", "Airtel", "Vodafone Idea", "BSNL", "MTNL"]
 INDIAN_DEVICES = ["Asus ASUS_AI2401_A", "Samsung SM-G998B", "OnePlus 9 Pro", "Xiaomi Mi 11", "Google Pixel 6"]
 
-# ================== USER-AGENT ==================
 def sUs():
     return "GarenaMSDK/4.0.39(FRL-AN00a ;Android 10;nu;HK;)"
 
@@ -143,16 +142,13 @@ def pWe():
     except:
         return "0.0.0.0"
 
-# ---------- PERBAIKAN: RoFl (signature = CLIENT_SECRET + json_body) ----------
+# ---------- RoFl (persis app.py) ----------
 def RoFl(session, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
     payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
     json_body = json.dumps(payload, separators=(',', ':'))
-    
-    # FIX: signature dengan CLIENT_SECRET + json_body
     data_to_sign = CLIENT_SECRET + json_body
     signature = hashlib.sha256(data_to_sign.encode()).hexdigest()
-    
     headers = {
         "User-Agent": sUs(),
         "Authorization": f"Signature {signature}",
@@ -166,15 +162,19 @@ def RoFl(session, password):
         else:
             raise Exception(f"Register failed: {data}")
     else:
-        resp.raise_for_status()
-        raise Exception(f"Unexpected response: {resp.text}")
+        # TAMPILKAN DETAIL ERROR DARI SERVER
+        try:
+            error_body = resp.json()
+        except:
+            error_body = resp.text
+        raise Exception(f"HTTP {resp.status_code}: {error_body}")
 
-# ---------- lMaO (client_secret string) ----------
+# ---------- lMaO (persis app.py) ----------
 def lMaO(session, uid, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
     payload = {
         "client_id": 100067,
-        "client_secret": CLIENT_SECRET,  # string
+        "client_secret": CLIENT_SECRET,
         "client_type": 2,
         "password": password,
         "response_type": "token",
@@ -182,7 +182,12 @@ def lMaO(session, uid, password):
     }
     headers = {"User-Agent": sUs(), "Content-Type": "application/json"}
     resp = session.post(url, json=payload, headers=headers, timeout=10)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        try:
+            error_body = resp.json()
+        except:
+            error_body = resp.text
+        raise Exception(f"Token grant HTTP {resp.status_code}: {error_body}")
     data = resp.json()
     if data.get("code") != 0:
         raise Exception(f"Token grant failed: {data}")
@@ -194,11 +199,11 @@ def get_base_url(region):
     else:
         return "https://loginbp.ggpolarbear.com"
 
+# ---------- gG (MajorRegister) ----------
 def gG(session, name, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorRegister"
     host = base.replace("https://", "")
-    
     exp_digits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'}
     num = random.randint(1,99999)
     exp = ''.join(exp_digits[d] for d in f"{num:05d}")
@@ -221,9 +226,15 @@ def gG(session, name, access_token, open_id, region, is_ghost=False):
         "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=encrypted_payload, timeout=15)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        try:
+            error_body = resp.json()
+        except:
+            error_body = resp.text
+        raise Exception(f"MajorRegister HTTP {resp.status_code}: {error_body}")
     return Pro(resp.content)
 
+# ---------- nIcE (MajorLogin) ----------
 def nIcE(session, access_token, open_id, region, lang_code):
     base = get_base_url(region)
     url = f"{base}/MajorLogin"
@@ -316,13 +327,19 @@ def nIcE(session, access_token, open_id, region, lang_code):
         "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=encrypted, timeout=15)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        try:
+            error_body = resp.json()
+        except:
+            error_body = resp.text
+        raise Exception(f"MajorLogin HTTP {resp.status_code}: {error_body}")
     decoded = Pro(resp.content)
     jwt_token = decoded.get(8)
     if isinstance(jwt_token, list):
         jwt_token = jwt_token[0] if jwt_token else None
     return decoded, jwt_token
 
+# ---------- dUdE (ChooseRegion) ----------
 def dUdE(session, region_code, jwt_token):
     base = get_base_url(region_code)
     url = f"{base}/ChooseRegion"
@@ -340,12 +357,19 @@ def dUdE(session, region_code, jwt_token):
         "User-Agent": bRuH(), "X-GA": "v1 1", "X-Unity-Version": "2018.4."
     }
     resp = session.post(url, headers=headers, data=encrypted_payload, timeout=10)
-    return resp.status_code == 200
+    if resp.status_code != 200:
+        try:
+            error_body = resp.json()
+        except:
+            error_body = resp.text
+        raise Exception(f"ChooseRegion HTTP {resp.status_code}: {error_body}")
+    return True
 
 # ================== FUNGSI UTAMA ==================
 def create_account(region, account_name, password_prefix, is_ghost=False):
     session = requests.Session()
     try:
+        # Password format sama dengan app.py
         r1 = yEet(6)
         r2 = yEet(6)
         password = f"{password_prefix.upper()}_{r1}-VAIBHAV{r2}"
