@@ -1,4 +1,4 @@
-# moss_core.py - Debug Version (menampilkan detail error)
+# moss_core.py - FINAL dengan hardcode password untuk debugging
 import json, time, random, string, hashlib, base64, codecs
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -19,7 +19,6 @@ INDIAN_CITIES = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkat
 INDIAN_CARRIERS = ["Jio", "Airtel", "Vodafone Idea", "BSNL", "MTNL"]
 INDIAN_DEVICES = ["Asus ASUS_AI2401_A", "Samsung SM-G998B", "OnePlus 9 Pro", "Xiaomi Mi 11", "Google Pixel 6"]
 
-# ================== USER-AGENT ==================
 def sUs():
     return "GarenaMSDK/4.0.39(FRL-AN00a ;Android 10;nu;HK;)"
 
@@ -143,7 +142,7 @@ def pWe():
     except:
         return "0.0.0.0"
 
-# ---------- RoFl dengan debug detail ----------
+# ---------- RoFl dengan detail request ----------
 def RoFl(session, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
     payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
@@ -154,7 +153,8 @@ def RoFl(session, password):
         "User-Agent": sUs(),
         "Authorization": f"Signature {signature}",
         "Content-Type": "application/json; charset=utf-8",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip"
     }
     resp = session.post(url, data=json_body, headers=headers, timeout=10)
     if resp.status_code == 200:
@@ -164,12 +164,13 @@ def RoFl(session, password):
         else:
             raise Exception(f"Register failed: {data}")
     else:
-        # Kembalikan detail response untuk debugging
         try:
             error_body = resp.json()
         except:
             error_body = resp.text
-        raise Exception(f"HTTP {resp.status_code} | Body: {error_body} | Headers: {dict(resp.headers)}")
+        # Sertakan detail request untuk debugging
+        debug_info = f"Payload: {json_body} | Signature: {signature} | Headers: {headers}"
+        raise Exception(f"HTTP {resp.status_code} | Body: {error_body} | Debug: {debug_info}")
 
 # ---------- lMaO ----------
 def lMaO(session, uid, password):
@@ -371,11 +372,15 @@ def dUdE(session, region_code, jwt_token):
 def create_account(region, account_name, password_prefix, is_ghost=False):
     session = requests.Session()
     try:
-        # --- DEBUG: hardcode password dari app.py yang berhasil ---
-        # password = "SPIDY_R5R6N1-VAIBHAVXYZABC"  # contoh
+        # ====== DEBUG: Gunakan password hardcoded dari app.py yang berhasil ======
+        # Contoh password yang pernah berhasil di app.py: "SPIDY_R5R6N1-VAIBHAVXYZABC"
+        # Kita akan coba hardcode dulu
+        # password = "SPIDY_R5R6N1-VAIBHAVXYZABC"
+        # Tapi kita juga coba generate dengan format yang sama
         r1 = yEet(6)
         r2 = yEet(6)
         password = f"{password_prefix.upper()}_{r1}-VAIBHAV{r2}"
+        # password = "SPIDY_R5R6N1-VAIBHAVXYZABC"  # uncomment untuk hardcode
         
         uid = RoFl(session, password)
         access_token, open_id = lMaO(session, uid, password)
