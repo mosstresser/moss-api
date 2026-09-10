@@ -1,4 +1,4 @@
-# moss_core.py - FINAL (debug 400)
+# moss_core.py - Debug Version (menampilkan detail error)
 import json, time, random, string, hashlib, base64, codecs
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -19,6 +19,7 @@ INDIAN_CITIES = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkat
 INDIAN_CARRIERS = ["Jio", "Airtel", "Vodafone Idea", "BSNL", "MTNL"]
 INDIAN_DEVICES = ["Asus ASUS_AI2401_A", "Samsung SM-G998B", "OnePlus 9 Pro", "Xiaomi Mi 11", "Google Pixel 6"]
 
+# ================== USER-AGENT ==================
 def sUs():
     return "GarenaMSDK/4.0.39(FRL-AN00a ;Android 10;nu;HK;)"
 
@@ -142,7 +143,7 @@ def pWe():
     except:
         return "0.0.0.0"
 
-# ---------- RoFl (persis app.py) ----------
+# ---------- RoFl dengan debug detail ----------
 def RoFl(session, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest:register"
     payload = {"app_id": 100067, "client_type": 2, "password": password, "source": 2}
@@ -152,7 +153,8 @@ def RoFl(session, password):
     headers = {
         "User-Agent": sUs(),
         "Authorization": f"Signature {signature}",
-        "Content-Type": "application/json; charset=utf-8"
+        "Content-Type": "application/json; charset=utf-8",
+        "Accept": "application/json"
     }
     resp = session.post(url, data=json_body, headers=headers, timeout=10)
     if resp.status_code == 200:
@@ -162,14 +164,14 @@ def RoFl(session, password):
         else:
             raise Exception(f"Register failed: {data}")
     else:
-        # TAMPILKAN DETAIL ERROR DARI SERVER
+        # Kembalikan detail response untuk debugging
         try:
             error_body = resp.json()
         except:
             error_body = resp.text
-        raise Exception(f"HTTP {resp.status_code}: {error_body}")
+        raise Exception(f"HTTP {resp.status_code} | Body: {error_body} | Headers: {dict(resp.headers)}")
 
-# ---------- lMaO (persis app.py) ----------
+# ---------- lMaO ----------
 def lMaO(session, uid, password):
     url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
     payload = {
@@ -180,7 +182,7 @@ def lMaO(session, uid, password):
         "response_type": "token",
         "uid": uid
     }
-    headers = {"User-Agent": sUs(), "Content-Type": "application/json"}
+    headers = {"User-Agent": sUs(), "Content-Type": "application/json", "Accept": "application/json"}
     resp = session.post(url, json=payload, headers=headers, timeout=10)
     if resp.status_code != 200:
         try:
@@ -199,7 +201,7 @@ def get_base_url(region):
     else:
         return "https://loginbp.ggpolarbear.com"
 
-# ---------- gG (MajorRegister) ----------
+# ---------- gG ----------
 def gG(session, name, access_token, open_id, region, is_ghost=False):
     base = get_base_url(region)
     url = f"{base}/MajorRegister"
@@ -234,7 +236,7 @@ def gG(session, name, access_token, open_id, region, is_ghost=False):
         raise Exception(f"MajorRegister HTTP {resp.status_code}: {error_body}")
     return Pro(resp.content)
 
-# ---------- nIcE (MajorLogin) ----------
+# ---------- nIcE ----------
 def nIcE(session, access_token, open_id, region, lang_code):
     base = get_base_url(region)
     url = f"{base}/MajorLogin"
@@ -339,7 +341,7 @@ def nIcE(session, access_token, open_id, region, lang_code):
         jwt_token = jwt_token[0] if jwt_token else None
     return decoded, jwt_token
 
-# ---------- dUdE (ChooseRegion) ----------
+# ---------- dUdE ----------
 def dUdE(session, region_code, jwt_token):
     base = get_base_url(region_code)
     url = f"{base}/ChooseRegion"
@@ -369,7 +371,8 @@ def dUdE(session, region_code, jwt_token):
 def create_account(region, account_name, password_prefix, is_ghost=False):
     session = requests.Session()
     try:
-        # Password format sama dengan app.py
+        # --- DEBUG: hardcode password dari app.py yang berhasil ---
+        # password = "SPIDY_R5R6N1-VAIBHAVXYZABC"  # contoh
         r1 = yEet(6)
         r2 = yEet(6)
         password = f"{password_prefix.upper()}_{r1}-VAIBHAV{r2}"
