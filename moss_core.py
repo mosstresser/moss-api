@@ -184,7 +184,8 @@ def lMaO(session, uid, password):
         "client_type": 2,
         "password": password,
         "response_type": "token",
-        "uid": uid
+        "uid": uid,
+        "grant_type": "password"  # Tambahkan ini
     }
     headers = {"User-Agent": sUs(), "Content-Type": "application/json", "Accept": "application/json"}
     resp = session.post(url, json=payload, headers=headers, timeout=10)
